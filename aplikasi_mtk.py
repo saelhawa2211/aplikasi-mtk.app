@@ -1,41 +1,66 @@
+import streamlit as st
 import matplotlib.pyplot as plt
-import numpy as np
-import math
 
-# Fungsi menghitung EOQ
-def hitung_eoq(D, S, H):
-    return math.sqrt((2 * D * S) / H)
+def mm1_model(lmbda, mu):
+    if lmbda >= mu:
+        return {"error": "λ harus lebih kecil dari μ agar sistem stabil."}
+    
+    rho = lmbda / mu
+    L = lmbda / (mu - lmbda)
+    Lq = (lmbda ** 2) / (mu * (mu - lmbda))
+    W = 1 / (mu - lmbda)
+    Wq = lmbda / (mu * (mu - lmbda))
 
-# Input data
-D = 10000  # Permintaan tahunan
-S = 100    # Biaya pemesanan
-H = 2      # Biaya penyimpanan per unit per tahun
+    return {
+        "rho": round(rho, 4),
+        "L": round(L, 4),
+        "Lq": round(Lq, 4),
+        "W": round(W, 4),
+        "Wq": round(Wq, 4)
+    }
 
-# Hitung EOQ
-eoq = hitung_eoq(D, S, H)
+# Streamlit UI
+st.title("Model Antrian M/M/1")
 
-# Rentang jumlah pemesanan (Q)
-Q = np.arange(100, 5000, 50)
+st.markdown("""
+Model ini menghitung metrik performa dari sistem antrian **M/M/1** berdasarkan:
+- **λ (lambda)** = laju kedatangan
+- **μ (mu)** = laju pelayanan
 
-# Hitung biaya
-ordering_cost = (D / Q) * S
-holding_cost = (Q / 2) * H
-total_cost = ordering_cost + holding_cost
+Masukkan nilai untuk melihat hasilnya.
+""")
 
-# Plot
-plt.figure(figsize=(10, 6))
-plt.plot(Q, ordering_cost, label="Biaya Pemesanan", linestyle="--")
-plt.plot(Q, holding_cost, label="Biaya Penyimpanan", linestyle="--")
-plt.plot(Q, total_cost, label="Total Biaya", linewidth=2)
+lmbda = st.number_input("Masukkan nilai λ (lambda)", min_value=0.0, format="%.4f")
+mu = st.number_input("Masukkan nilai μ (mu)", min_value=0.0, format="%.4f")
 
-# Garis EOQ
-plt.axvline(eoq, color='red', linestyle=':', label=f"EOQ = {eoq:.0f} unit")
+if st.button("Hitung"):
+    if lmbda == 0 or mu == 0:
+        st.warning("λ dan μ harus lebih besar dari 0.")
+    else:
+        hasil = mm1_model(lmbda, mu)
+        if "error" in hasil:
+            st.error(hasil["error"])
+        else:
+            st.subheader("Hasil Perhitungan:")
+            st.write(f"**ρ (Utilisasi):** {hasil['rho']}")
+            st.write(f"**L (Rata-rata dalam sistem):** {hasil['L']}")
+            st.write(f"**Lq (Rata-rata dalam antrian):** {hasil['Lq']}")
+            st.write(f"**W (Waktu dalam sistem):** {hasil['W']}")
+            st.write(f"**Wq (Waktu dalam antrian):** {hasil['Wq']}")
 
-# Label dan judul
-plt.title("Model EOQ - Grafik Biaya vs Jumlah Pemesanan")
-plt.xlabel("Jumlah Pemesanan (Q)")
-plt.ylabel("Biaya (dalam satuan biaya)")
-plt.legend()
-plt.grid(True)
-plt.tight_layout()
-plt.show()
+            # Visualisasi grafik batang
+            st.subheader("Visualisasi Grafik")
+            labels = ['L', 'Lq', 'W', 'Wq']
+            values = [hasil['L'], hasil['Lq'], hasil['W'], hasil['Wq']]
+
+            fig, ax = plt.subplots()
+            bars = ax.bar(labels, values, color=['#4CAF50', '#2196F3', '#FF9800', '#E91E63'])
+            ax.set_ylabel('Nilai')
+            ax.set_title('Grafik Kinerja Sistem Antrian M/M/1')
+
+            # Menampilkan nilai pada tiap batang
+            for bar in bars:
+                yval = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2.0, yval + 0.05, round(yval, 2), ha='center', va='bottom')
+
+            st.pyplot(fig)
